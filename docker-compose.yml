@@ -1,0 +1,72 @@
+services:
+  webapi:
+    image: ${DOCKER_REGISTRY-}webapi
+    container_name: webapi
+    depends_on:
+      database:
+        condition: service_healthy
+    profiles: ["api", "debug"]
+    build:
+      context: .
+      dockerfile: src/WebAPI/Dockerfile
+    ports:
+      - "8080:8080"
+      - "8081:8081"
+
+  database:
+    image: postgres:alpine
+    container_name: database
+    profiles: ["database", "debug"]
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_HOST: ${POSTGRES_HOST}
+      POSTGRES_PORT: ${POSTGRES_PORT}
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_INITDB_ARGS: "--locale-provider=icu --icu-locale=en-US --no-sync"
+    restart: always
+    volumes:
+      - ./.containers/database:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "pg_isready",
+          "-U",
+          "${POSTGRES_USER}",
+          "-d",
+          "${POSTGRES_DB}",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  migrations:
+    image: ${DOCKER_REGISTRY-}migrations
+    container_name: migrations
+    depends_on:
+      database:
+        condition: service_healthy
+    profiles: ["database", "debug"]
+    build:
+      context: .
+      dockerfile: database/Dockerfile
+    ports:
+      - "5000:80"
+    command: "'Server=database;Port=${POSTGRES_PORT};Username=${POSTGRES_USER};Password=${POSTGRES_PASSWORD};Database=${POSTGRES_DB};Pooling=true;'"
+
+  #pgadmin:
+  #  container_name: pgadmin
+  #  image: dpage/pgadmin4:latest
+  #  environment:
+  #    - PGADMIN_DEFAULT_EMAIL=${PGADMIN_MAIL}
+  #    - PGADMIN_DEFAULT_PASSWORD=${PGADMIN_PW}
+  #  ports:
+  #    - "5050:80"
+  #  restart: always

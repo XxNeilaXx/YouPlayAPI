@@ -1,0 +1,4 @@
+ALTER TABLE YouPlay.User DROP CONSTRAINT IF EXISTS FK_CreatedBy_User;
+
+ALTER TABLE YouPlay.User
+ADD CONSTRAINT FK_CreatedBy_User FOREIGN KEY (CreatedBy) REFERENCES YouPlay.User (id);
